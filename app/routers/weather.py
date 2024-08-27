@@ -13,8 +13,9 @@ class WeatherRouter:
     async def insert_weekly_weather(self):
         try:
             weather_service = WeatherService()
-            result = await weather_service.get_location_code()
-            return result
+            location = await weather_service.get_location_code()
+            short_weathers = await weather_service.get_short_weather(location)
+            return short_weathers
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
