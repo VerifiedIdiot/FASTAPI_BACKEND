@@ -11,6 +11,17 @@ class WeeklyWeatherData(BaseModel):
     afternoon_rain_percent: str
     afternoon_weather_condition: str
 
+class MiddleTemp(BaseModel):
+    date: str
+    morning_temperature: str
+    afternoon_temperature: str
+
+class MiddleCondition(BaseModel):
+    date: str
+    morning_rain_percent: str
+    morning_weather_condition: str
+    afternoon_rain_percent: str
+    afternoon_weather_condition: str
 
 class ErrorResponse(BaseModel):
     error: str

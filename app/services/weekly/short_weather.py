@@ -52,20 +52,20 @@ class ShortWeatherService(WeatherAbstract):
         dict[str, list[WeeklyWeatherData]], ErrorResponse]:
         logger.info("단기예보 취합 시작")
         try:
-            today = datetime.now().strftime('%Y%m%d')
-            two_days_later = (datetime.now() + timedelta(days=2)).strftime('%Y%m%d')
+            # today = datetime.now().strftime('%Y%m%d')
+            # two_days_later = (datetime.now() + timedelta(days=2)).strftime('%Y%m%d')
 
             complete_short = {}
 
             async with httpx.AsyncClient(timeout=300.0) as client:
                 short_date_params = self.short_days_param()
-                print(short_date_params)
+                # print(short_date_params)
                 for city_name, reg_code in location_code.items():
                     query_params = self.short_query_params(reg_code, short_date_params)
                     query_params["authKey"] = self.api_key
                     print(query_params)
                     response = await client.get(self.api_short, params=query_params)
-                    response.raise_for_status()
+                    # response.raise_for_status()
                     response_text = response.text
 
                     filtered_lines = [
@@ -82,11 +82,11 @@ class ShortWeatherService(WeatherAbstract):
                             continue
 
                         date_str = fields[2][:8]
-                        if today <= date_str <= two_days_later:
-                            if fields[2].endswith("0000"):
-                                morning_data[date_str] = [fields[12], fields[13], fields[16]]
-                            elif fields[2].endswith("1200"):
-                                afternoon_data[date_str] = [fields[12], fields[13], fields[16]]
+                        if fields[2].endswith("0000"):
+                            morning_data[date_str] = [fields[12], fields[13], fields[16]]
+                        elif fields[2].endswith("1200"):
+                            afternoon_data[date_str] = [fields[12], fields[13], fields[16]]
+
 
                     city_weather_data = []
                     for date in morning_data.keys():
@@ -113,14 +113,3 @@ class ShortWeatherService(WeatherAbstract):
             logger.error(f"단기예보 취합 실패: {e}")
             return ErrorResponse(error=f"단기예보 취합 실패: {str(e)}")
 
-    @staticmethod
-    def parse_line(line: str) -> Union[list[str], ErrorResponse]:
-        try:
-            data_fields = []
-            matcher = re.finditer(r'[^"\s]+|"([^"]*)"', line)
-            for match in matcher:
-                data_fields.append(match.group(1) if match.group(1) else match.group(0))
-            return data_fields
-        except Exception as e:
-            logger.warn(f"라인 파싱 실패: {e}")
-            return ErrorResponse(error=f"단기예보 취합 실패: {str(e)}")

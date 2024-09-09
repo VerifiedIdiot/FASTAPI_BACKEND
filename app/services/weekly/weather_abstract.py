@@ -1,7 +1,10 @@
+import logging
+import re
 from abc import ABC
 from datetime import datetime, timedelta
-from typing import Dict
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class WeatherAbstract(ABC):
     DATE_FORMATTER = "%Y%m%d"
@@ -10,7 +13,7 @@ class WeatherAbstract(ABC):
     def format_date(self, date_time: datetime) -> int:
         return int(date_time.strftime(self.DATE_TIME_FORMATTER))
 
-    def short_days_param(self) -> Dict[str, int]:
+    def short_days_param(self) -> dict[str, int]:
         today = datetime.now().date()
 
         yesterday_noon = datetime.combine(today - timedelta(days=1), datetime.min.time()).replace(hour=12)
@@ -23,7 +26,7 @@ class WeatherAbstract(ABC):
         return short_date_params
 
     @staticmethod
-    def short_query_params(reg_code: str, short_date_params: Dict[str, int]) -> Dict[str, str]:
+    def short_query_params(reg_code: str, short_date_params: dict[str, int]) -> dict[str, str]:
         query_params = {
             "reg": reg_code,
             "tmfc1": str(short_date_params["today"]),
@@ -32,7 +35,7 @@ class WeatherAbstract(ABC):
         }
         return query_params
 
-    def middle_days_param(self) -> Dict[str, int]:
+    def middle_days_param(self) -> dict[str, int]:
         now = datetime.now().date()
 
         date_params = {
@@ -43,7 +46,7 @@ class WeatherAbstract(ABC):
         return date_params
 
     @staticmethod
-    def middle_query_params(reg_code: str, date_params: Dict[str, int]) -> Dict[str, str]:
+    def middle_query_params(reg_code: str, date_params: dict[str, int]) -> dict[str, str]:
         query_params = {
             "reg": reg_code,
             "tmef1": str(date_params["tomorrow"]),
@@ -51,3 +54,15 @@ class WeatherAbstract(ABC):
             "help": "0"
         }
         return query_params
+
+    @staticmethod
+    def parse_line(line: str) -> list[str]:
+        try:
+            data_fields = []
+            matcher = re.finditer(r'[^"\s]+|"([^"]*)"', line)
+            for match in matcher:
+                data_fields.append(match.group(1) if match.group(1) else match.group(0))
+            return data_fields
+        except Exception as e:
+            logger.warn(f"라인 파싱 실패: {e}")
+

@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
+from app.services.weekly.middle_weather import MiddleWeatherService
 from app.services.weekly.short_weather import ShortWeatherService
 
 logging.basicConfig(level=logging.INFO)
@@ -26,13 +27,13 @@ class WeatherRouter:
                 raise HTTPException(status_code=404, detail="지역 코드를 불러올 수 없습니다.")
 
             # short weather 조회
-            short_weathers = await short_weather_service.get_short_weather(location)
+            # short_weathers = await short_weather_service.get_short_weather(location)
 
             # middle weather 조회 (주석을 해제하고 사용할 수 있음)
-            # middle_weather_service = MiddleWeatherService()
-            # await middle_weather_service.middle_temp(location)
+            middle_weather_service = MiddleWeatherService()
+            # await middle_weather_service.get_middle_temp(location)
 
-            return short_weathers
+            return await middle_weather_service.get_middle_temp(location)
 
         except Exception as e:
             logger.error(f"주간 날씨 데이터를 삽입하는 중 오류 발생: {str(e)}")
