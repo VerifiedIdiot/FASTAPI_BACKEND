@@ -1,27 +1,30 @@
+import logging
 import re
 from datetime import datetime, timedelta
+from typing import Union
+
 import httpx
-import logging
-from typing import Dict, List
-from app.enums.city import CityEnum
+
 from app.config.settings import settings
-from app.services.weather_abstract import WeatherAbstract
+from app.enums.city import CityEnum
+from app.models.weekly_weather import WeeklyWeatherData, ErrorResponse
+from app.services.weekly.weather_abstract import WeatherAbstract
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class WeatherService(WeatherAbstract):
+class ShortWeatherService(WeatherAbstract):
     def __init__(self):
         self.api_key = settings.WEEKLY_API_KEY  # API 키 또는 필요한 인증 정보
         self.api_location = settings.WEEKLY_LOCATION  # 외부 API URL
         self.api_short = settings.WEEKLY_SHORT_TEMP  # 외부 API 중 오늘 ~ 3일까지의 날씨&온도정보
 
-    async def get_location_code(self) -> Dict[str, str]:
+    async def get_location_code(self) -> dict[str, str]:
         logger.info("지역코드 가져오기 시작")
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=300.0) as client:
                 # 비동기 GET 요청
                 response = await client.get(self.api_location, params={"authKey": self.api_key})
                 response.raise_for_status()  # HTTP 오류 발생 시 예외를 발생시킵니다.
@@ -45,7 +48,8 @@ class WeatherService(WeatherAbstract):
             logger.error(f"API 요청 오류: {e}")
             return {}
 
-    async def get_short_weather(self, location_code: Dict[str, str]) -> Dict[str, List[List[str]]]:
+    async def get_short_weather(self, location_code: dict[str, str]) -> Union[
+        dict[str, list[WeeklyWeatherData]], ErrorResponse]:
         logger.info("단기예보 취합 시작")
         try:
             today = datetime.now().strftime('%Y%m%d')
@@ -53,7 +57,7 @@ class WeatherService(WeatherAbstract):
 
             complete_short = {}
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=300.0) as client:
                 short_date_params = self.short_days_param()
                 print(short_date_params)
                 for city_name, reg_code in location_code.items():
@@ -84,21 +88,33 @@ class WeatherService(WeatherAbstract):
                             elif fields[2].endswith("1200"):
                                 afternoon_data[date_str] = [fields[12], fields[13], fields[16]]
 
-                    city_weather = []
+                    city_weather_data = []
                     for date in morning_data.keys():
-                        combined_weather = [date] + morning_data[date] + afternoon_data.get(date, ["", "", ""])
-                        city_weather.append(combined_weather)
+                        morning = morning_data[date]
+                        afternoon = afternoon_data.get(date, ["", "", ""])
 
-                    complete_short[city_name] = city_weather
+                        # Create WeeklyWeatherData model instance
+                        weather_data = WeeklyWeatherData(
+                            date=date,
+                            morning_temperature=morning[0],
+                            morning_rain_percent=morning[1],
+                            morning_weather_condition=morning[2],
+                            afternoon_temperature=afternoon[0],
+                            afternoon_rain_percent=afternoon[1],
+                            afternoon_weather_condition=afternoon[2]
+                        )
+                        city_weather_data.append(weather_data)
+
+                    complete_short[city_name] = city_weather_data
 
             logger.info("단기예보 취합 성공")
             return complete_short
         except httpx.RequestError as e:
             logger.error(f"단기예보 취합 실패: {e}")
-            return {}
+            return ErrorResponse(error=f"단기예보 취합 실패: {str(e)}")
 
     @staticmethod
-    def parse_line(line: str) -> List[str]:
+    def parse_line(line: str) -> Union[list[str], ErrorResponse]:
         try:
             data_fields = []
             matcher = re.finditer(r'[^"\s]+|"([^"]*)"', line)
@@ -107,4 +123,4 @@ class WeatherService(WeatherAbstract):
             return data_fields
         except Exception as e:
             logger.warn(f"라인 파싱 실패: {e}")
-            return []
+            return ErrorResponse(error=f"단기예보 취합 실패: {str(e)}")
