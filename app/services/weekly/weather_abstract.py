@@ -1,6 +1,7 @@
 import logging
 import re
 from abc import ABC
+from typing import Optional
 from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
@@ -46,13 +47,18 @@ class WeatherAbstract(ABC):
         return date_params
 
     @staticmethod
-    def middle_query_params(reg_code: str, date_params: dict[str, int]) -> dict[str, str]:
+    def middle_query_params(reg_code: Optional[str], date_params: dict[str, int]) -> dict[str, str]:
+        """중기 예보 쿼리 파라미터 생성"""
+
         query_params = {
-            "reg": reg_code,
             "tmef1": str(date_params["tomorrow"]),
             "tmef2": str(date_params["sevenDaysAfter"]),
             "help": "0"
         }
+
+        if reg_code:
+            query_params["reg"] = reg_code
+
         return query_params
 
     @staticmethod
